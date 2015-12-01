@@ -1,0 +1,73 @@
+<!doctype html>
+<html ng-app>
+<head>
+    <title>long running python</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.0.8/angular.min.js"></script>
+    <script>
+        function LongProcessController($scope, $http, $timeout) {
+            $scope.init = function(){
+                console.log('init');
+                $http.get('/status/').success(function(data) {
+                    console.log('status!');
+                    console.log(data);
+                    $scope.showstartnavigation = ! data.started;
+                    $scope.showstopnavigation = data.started;
+                    $scope.counter = null;
+                    $scope.process_status = data.started;
+                    if (data.started){
+                        $scope.go();
+                        $scope.process_status = true;
+                    }
+                })
+            };
+            $scope.onTimeout = function(){
+                console.log('tic!');
+                $http.get('/report/').success(function(data) {
+                    console.log('report data');
+                    console.log(data);
+                    if($scope.counter == data.progress){
+                        $scope.stop();
+                    } else {
+                        $scope.counter = data.progress * 10;
+                        $scope.percent = $scope.counter + '%';
+                    }
+                });
+                $scope.mytimeout = $timeout($scope.onTimeout,1000);
+            };
+
+            $scope.go = function() {
+                console.log('go');
+                $scope.showstartnavigation = false;
+                $scope.showstopnavigation = true;
+                $http.get('/start/').success(function(data) {
+                    console.log('go data');
+                    console.log(data);
+                    $scope.mytimeout = $timeout($scope.onTimeout,1000);
+                    $scope.process_status = data.started;
+                });
+            };
+            $scope.stop = function() {
+                $scope.showstartnavigation = false;
+                $scope.showstopnavigation = false;
+                console.log('stop');
+                $http.get('/stop/').success(function(data) {
+                    console.log('stop data');
+                    console.log(data);
+                    $scope.mytimeout = null;
+                    $scope.onTimeout = null;
+                    $scope.process_status = data.started;
+                });
+            };
+        }
+    </script>
+</head>
+<body>
+<div ng-controller="LongProcessController" ng-init="init()">
+    <a ng-show="showstartnavigation" ng-href='#here' ng-click='go()' >start</a>
+    <a ng-show="showstopnavigation" ng-href='#here' ng-click='stop()' >stop</a>
+    <p>Processing is running: {{ process_status }}</p>
+    {{percent}}
+    <div style="width:{{ counter }}% ; background-color: red;">&nbsp;</div>
+</div>
+</body>
+</html>
